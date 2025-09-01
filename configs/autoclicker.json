@@ -1,0 +1,9 @@
+{
+    "name": "autoclicker",
+    "script_path": "/home/anxious/macro-manager/macros/autoclicker.py",
+    "description": "AutoClicker: autoclicker.py",
+    "cps": 25.0,
+    "click_duration": 0.001,
+    "trigger_button": "extra",
+    "target_button": "left"
+}
