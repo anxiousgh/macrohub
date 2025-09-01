@@ -1720,22 +1720,24 @@ class MacroManager:
                 cmd.extend(['--target', str(macro_config['target_button'])])
 
         elif macro_type == 'strafer':
-            # For strafer, create a temporary config file with all settings
-            config_dir = os.path.expanduser("~/macro-manager/configs")
-            os.makedirs(config_dir, exist_ok=True)
+            # Use config file approach - write ALL config keys to a temporary file
+            macro_name = os.path.splitext(os.path.basename(script_path))[0]
+            config_file = os.path.expanduser(f"~/macro-manager/configs/{macro_name}.json")
 
-            # Make sure the config file has the right path and name
-            config_file = os.path.join(config_dir, f"{macro_type}_{os.path.basename(script_path).split('.')[0]}_config.json")
-
+            # Ensure the config file exists and has ALL the configuration keys
             try:
+                # Write the complete macro config to the file
+                os.makedirs(os.path.dirname(config_file), exist_ok=True)
                 with open(config_file, 'w') as f:
                     json.dump(macro_config, f, indent=4)
-                cmd.extend(['--config', config_file])
-                self.log(f"Created config for strafer at: {config_file}")
-            except Exception as e:
-                self.log(f"Error creating config file for strafer: {e}")
 
-                # Fallback to passing some key parameters directly
+                cmd.extend(['--config', config_file])
+                self.log(f"Using config file for strafer: {config_file}")
+                self.log(f"Config keys written: {len(macro_config)} settings")
+
+            except Exception as e:
+                self.log(f"Error writing config file: {e}")
+                # Fallback to basic parameters only
                 if 'SPEED_PX_PER_SEC_DEFAULT' in macro_config:
                     cmd.extend(['--speed', str(macro_config['SPEED_PX_PER_SEC_DEFAULT'])])
                 if 'INVERT_X' in macro_config:
@@ -1911,7 +1913,7 @@ if __name__ == "__main__":
     try:
         import customtkinter
         import evdev
-    except ImportError as e:dd
+    except ImportError as e:
         print(f"Missing dependency: {e}")
         print("Install with: pip install customtkinter evdev")
         sys.exit(1)
