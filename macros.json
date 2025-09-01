@@ -1,0 +1,12 @@
+{
+    "strafer": {
+        "name": "strafer",
+        "script_path": "/home/anxious/macro-manager/macros/strafer.py",
+        "description": "Auto-discovered: strafer.py"
+    },
+    "autoclicker": {
+        "name": "autoclicker",
+        "script_path": "/home/anxious/macro-manager/macros/autoclicker.py",
+        "description": "Auto-discovered: autoclicker.py"
+    }
+}
