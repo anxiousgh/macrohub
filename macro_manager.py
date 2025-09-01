@@ -14,6 +14,7 @@ import evdev
 from pathlib import Path
 import sys
 import glob
+import re
 
 # Set appearance mode
 ctk.set_appearance_mode("dark")
@@ -376,9 +377,33 @@ class DevicePicker:
                 no_devices_label.pack(pady=80)
                 return
 
+            # Sort devices by event number
+            def get_event_number(device_tuple):
+                device = device_tuple[0]
+                path = device.path
+                # Extract number from /dev/input/eventX
+                match = re.search(r'event(\d+)', path)
+                return int(match.group(1)) if match else 999
+
+            input_devices.sort(key=get_event_number)
+
             self.device_vars = {}
+
+            # Create container frame for horizontal layout
+            devices_container = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+            devices_container.pack(fill="both", expand=True, padx=10, pady=10)
+
+            # Create rows of devices (max 3 devices per row for better layout)
+            devices_per_row = 3
+            current_row = None
+
             for i, (device, device_type) in enumerate(input_devices):
-                self.create_device_entry(device, device_type)
+                # Create new row every 3 devices
+                if i % devices_per_row == 0:
+                    current_row = ctk.CTkFrame(devices_container, fg_color="transparent")
+                    current_row.pack(fill="x", pady=5)
+
+                self.create_device_entry_horizontal(current_row, device, device_type)
 
         except Exception as e:
             error_label = ctk.CTkLabel(self.scroll_frame,
@@ -387,17 +412,24 @@ class DevicePicker:
                                        text_color=self.theme["error"])
             error_label.pack(pady=60)
 
-    def create_device_entry(self, device, device_type):
-        """Create a clickable device entry"""
-        device_frame = ctk.CTkFrame(self.scroll_frame, corner_radius=self.theme["corner_radius"],
-                                    fg_color=self.theme["surface_variant"], height=70)
-        device_frame.pack(fill="x", padx=15, pady=6)
+    def create_device_entry_horizontal(self, parent_row, device, device_type):
+        """Create a clickable device entry for horizontal layout"""
+
+        # Extract event number for display
+        event_match = re.search(r'event(\d+)', device.path)
+        event_num = event_match.group(1) if event_match else "?"
+
+        # Compact device frame - smaller width for horizontal layout
+        device_frame = ctk.CTkFrame(parent_row, corner_radius=self.theme["corner_radius"],
+                                    fg_color=self.theme["surface_variant"],
+                                    width=180, height=70)
+        device_frame.pack(side="left", padx=5, pady=3)
         device_frame.pack_propagate(False)
 
         # Store device path for this frame
         device_frame.device_path = device.path
 
-        # Radio button (still there but we'll make whole frame clickable)
+        # Radio button
         var = tk.StringVar()
         self.device_vars[device.path] = var
 
@@ -405,31 +437,36 @@ class DevicePicker:
                                    value=device.path,
                                    command=lambda p=device.path: self.device_selected(p),
                                    fg_color=self.theme["primary"])
-        radio.pack(side="left", padx=(15, 12), pady=20)
+        radio.pack(side="left", padx=(8, 5), pady=20)
 
-        # Device type badge
+        # Content frame for vertical stacking
+        content_frame = ctk.CTkFrame(device_frame, fg_color="transparent")
+        content_frame.pack(side="left", fill="both", expand=True, pady=8, padx=(0, 5))
+
+        # Event number prominently displayed
+        event_label = ctk.CTkLabel(content_frame, text=f"event{event_num}",
+                                   font=ctk.CTkFont(size=self.theme["font_size_medium"], weight="bold"),
+                                   text_color=self.theme["text_accent"],
+                                   anchor="w")
+        event_label.pack(anchor="w", fill="x")
+
+        # Device type badge (smaller)
         type_color = self.theme["success"] if device_type == "KEYBOARD" else self.theme["primary"]
-        type_badge = ctk.CTkLabel(device_frame, text=device_type,
-                                  font=ctk.CTkFont(size=self.theme["font_size_small"], weight="bold"),
+        type_badge = ctk.CTkLabel(content_frame, text=device_type[:4],  # Shortened for space
+                                  font=ctk.CTkFont(size=self.theme["font_size_small"]-1, weight="bold"),
                                   text_color="#000000", fg_color=type_color,
-                                  corner_radius=4, width=80)
-        type_badge.pack(side="left", padx=(0, 10), pady=25)
+                                  corner_radius=3, width=40, height=16)
+        type_badge.pack(anchor="w", pady=(2, 1))
 
-        # Device info
-        info_frame = ctk.CTkFrame(device_frame, fg_color="transparent")
-        info_frame.pack(side="left", fill="both", expand=True, pady=12)
+        # Device name (truncated if too long)
+        device_name = device.name
+        if len(device_name) > 20:
+            device_name = device_name[:17] + "..."
 
-        # Device name (larger)
-        name_label = ctk.CTkLabel(info_frame, text=f"{device.name}",
-                                  font=ctk.CTkFont(size=self.theme["font_size_medium"]+1, weight="bold"),
-                                  anchor="w", text_color=self.theme["text_primary"])
+        name_label = ctk.CTkLabel(content_frame, text=device_name,
+                                  font=ctk.CTkFont(size=self.theme["font_size_small"]),
+                                  anchor="w", text_color=self.theme["text_secondary"])
         name_label.pack(anchor="w", fill="x")
-
-        # Device path (larger and more visible)
-        path_label = ctk.CTkLabel(info_frame, text=f"Path: {device.path}",
-                                  font=ctk.CTkFont(size=self.theme["font_size_medium"]),
-                                  anchor="w", text_color=self.theme["text_accent"])
-        path_label.pack(anchor="w", fill="x")
 
         # Make the entire frame clickable
         def on_frame_click(event, path=device.path):
@@ -439,16 +476,17 @@ class DevicePicker:
 
         # Bind click events to frame and all its children
         device_frame.bind("<Button-1>", on_frame_click)
+        content_frame.bind("<Button-1>", on_frame_click)
+        event_label.bind("<Button-1>", on_frame_click)
         type_badge.bind("<Button-1>", on_frame_click)
-        info_frame.bind("<Button-1>", on_frame_click)
         name_label.bind("<Button-1>", on_frame_click)
-        path_label.bind("<Button-1>", on_frame_click)
 
         # Change cursor to hand when hovering
         device_frame.configure(cursor="hand2")
+        content_frame.configure(cursor="hand2")
+        event_label.configure(cursor="hand2")
         type_badge.configure(cursor="hand2")
         name_label.configure(cursor="hand2")
-        path_label.configure(cursor="hand2")
 
     def device_selected(self, device_path):
         # Uncheck all other radio buttons
@@ -462,9 +500,11 @@ class DevicePicker:
         self.select_btn.configure(state="normal")
 
     def select(self):
+        """Select the chosen device and close window"""
         self.window.destroy()
 
     def cancel(self):
+        """Cancel device selection and close window"""
         self.selected_device = None
         self.window.destroy()
 
@@ -977,8 +1017,7 @@ class ConfigTab:
                 'LOG_TICKS': 'False',
                 'LOG_STAGES': 'True',
                 'LOG_RESTARTS': 'True',
-                'LOG_SPEEDLINE_INTERVAL_S': 0.25,
-                'SPACE_TIMED_SPEED_SCHEDULE': [[0.0, 2500.0], [2.0, 2200.0], [4.0, 1800.0], [6.0, 1500.0], [8.0, 1150.0]]
+                'LOG_SPEEDLINE_INTERVAL_S': 0.25
             }
         else:
             return {
@@ -1125,21 +1164,8 @@ class ConfigTab:
             ('LOG_SPEEDLINE_INTERVAL_S', 'Speedline Interval (s)', 'number')
         ]
 
-        # Create section headers and fields
-        self.create_section_header("MOVEMENT SETTINGS")
-        self.create_config_fields(movement_fields)
-
-        self.create_section_header("KEY BINDINGS")
-        self.create_config_fields(key_fields)
-
-        self.create_section_header("MOVEMENT BEHAVIOR")
-        self.create_config_fields(behavior_fields)
-
-        self.create_section_header("SPACE TIMING")
-        self.create_config_fields(space_fields)
-
-        # Speed schedule section (FIXED POSITIONING)
-        self.create_section_header("SPACE SPEED SCHEDULE")
+        # Speed schedule section
+        self.create_section_header("SPEED SCHEDULE")
 
         # Create frame for the speed schedule editor
         schedule_frame = ctk.CTkFrame(self.scroll_frame, corner_radius=self.theme["corner_radius"])
@@ -1153,7 +1179,7 @@ class ConfigTab:
         schedule_label.pack(anchor="w", padx=8, pady=(6, 2))
 
         # Instructions label
-        instructions_label = ctk.CTkLabel(schedule_frame, text="Format: time_seconds, speed_px_per_sec (one pair per line)",
+        instructions_label = ctk.CTkLabel(schedule_frame, text="One pair per line: time, speed",
                                     font=ctk.CTkFont(size=self.theme["font_size_small"]),
                                     text_color=self.theme["text_secondary"],
                                     anchor="w")
@@ -1164,8 +1190,7 @@ class ConfigTab:
                                             fg_color=self.theme["surface_dark"],
                                             border_color=self.theme["border"],
                                             corner_radius=self.theme["corner_radius"],
-                                            height=120,
-                                            font=ctk.CTkFont(family="monospace", size=self.theme["font_size_small"]+1))
+                                            height=120)
         self.schedule_textbox.pack(fill="x", padx=8, pady=(0, 8))
 
         # Fill the text box with the current schedule
@@ -1182,6 +1207,19 @@ class ConfigTab:
 
         # Store the textbox in config_entries with a special key
         self.config_entries["SPACE_TIMED_SPEED_SCHEDULE"] = self.schedule_textbox
+
+        # Create section headers
+        self.create_section_header("MOVEMENT SETTINGS")
+        self.create_config_fields(movement_fields)
+
+        self.create_section_header("KEY BINDINGS")
+        self.create_config_fields(key_fields)
+
+        self.create_section_header("MOVEMENT BEHAVIOR")
+        self.create_config_fields(behavior_fields)
+
+        self.create_section_header("SPACE TIMING")
+        self.create_config_fields(space_fields)
 
         self.create_section_header("HUMANIZATION")
         self.create_config_fields(humanization_fields)
@@ -1248,7 +1286,6 @@ class ConfigTab:
             self.config_entries[field_name].pack(side="right", padx=(5, 8), pady=4)
 
     def save_config(self):
-        """Save the configuration with proper handling of speed schedule"""
         try:
             for key, entry in self.config_entries.items():
                 if key == "SPACE_TIMED_SPEED_SCHEDULE" and hasattr(entry, 'get'):
@@ -1295,7 +1332,6 @@ class ConfigTab:
             if self.save_macro_config():
                 messagebox.showinfo("Success", "Configuration saved!")
                 self.main_app.log(f"Configuration for '{self.macro_name}' updated")
-                self.main_app.log(f"Speed schedule: {len(self.macro_data.get('SPACE_TIMED_SPEED_SCHEDULE', []))} entries")
             else:
                 messagebox.showerror("Error", "Failed to save configuration")
 
@@ -1646,16 +1682,24 @@ class MacroManager:
                 messagebox.showerror("Error", f"Script not found for macro '{macro_name}'")
                 return
 
-            # Show device picker (always centered and on top)
-            picker = DevicePicker(self.root, self.theme)
-            self.root.wait_window(picker.window)
+            # Detect macro type to determine if device picker is needed
+            macro_type = self.detect_macro_type(script_path)
+            device_path = None
 
-            if not picker.selected_device:
-                self.log(f"Device selection cancelled for '{macro_name}'")
-                return
+            # Skip device picker for strafer since it auto-picks devices
+            if macro_type != 'strafer':
+                # Show device picker (always centered and on top)
+                picker = DevicePicker(self.root, self.theme)
+                self.root.wait_window(picker.window)
 
-            device_path = picker.selected_device
-            self.log(f"Selected device: {device_path}")
+                if not picker.selected_device:
+                    self.log(f"Device selection cancelled for '{macro_name}'")
+                    return
+
+                device_path = picker.selected_device
+                self.log(f"Selected device: {device_path}")
+            else:
+                self.log(f"Starting strafer '{macro_name}' - auto-detecting devices")
 
             # Load specific macro config
             config_file = os.path.expanduser(f"~/macro-manager/configs/{macro_name}.json")
@@ -1702,6 +1746,7 @@ class MacroManager:
     def build_command(self, script_path, macro_config, device_path):
         cmd = ['python3', script_path]
 
+        # Only add device path if it exists (not None for strafer)
         if device_path:
             cmd.extend(['--device', device_path])
 
@@ -1720,24 +1765,22 @@ class MacroManager:
                 cmd.extend(['--target', str(macro_config['target_button'])])
 
         elif macro_type == 'strafer':
-            # Use config file approach - write ALL config keys to a temporary file
-            macro_name = os.path.splitext(os.path.basename(script_path))[0]
-            config_file = os.path.expanduser(f"~/macro-manager/configs/{macro_name}.json")
+            # For strafer, create a temporary config file with all settings
+            config_dir = os.path.expanduser("~/macro-manager/configs")
+            os.makedirs(config_dir, exist_ok=True)
 
-            # Ensure the config file exists and has ALL the configuration keys
+            # Make sure the config file has the right path and name
+            config_file = os.path.join(config_dir, f"{macro_type}_{os.path.basename(script_path).split('.')[0]}_config.json")
+
             try:
-                # Write the complete macro config to the file
-                os.makedirs(os.path.dirname(config_file), exist_ok=True)
                 with open(config_file, 'w') as f:
                     json.dump(macro_config, f, indent=4)
-
                 cmd.extend(['--config', config_file])
-                self.log(f"Using config file for strafer: {config_file}")
-                self.log(f"Config keys written: {len(macro_config)} settings")
-
+                self.log(f"Created config for strafer at: {config_file}")
             except Exception as e:
-                self.log(f"Error writing config file: {e}")
-                # Fallback to basic parameters only
+                self.log(f"Error creating config file for strafer: {e}")
+
+                # Fallback to passing some key parameters directly
                 if 'SPEED_PX_PER_SEC_DEFAULT' in macro_config:
                     cmd.extend(['--speed', str(macro_config['SPEED_PX_PER_SEC_DEFAULT'])])
                 if 'INVERT_X' in macro_config:
