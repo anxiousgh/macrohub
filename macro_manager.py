@@ -977,7 +977,8 @@ class ConfigTab:
                 'LOG_TICKS': 'False',
                 'LOG_STAGES': 'True',
                 'LOG_RESTARTS': 'True',
-                'LOG_SPEEDLINE_INTERVAL_S': 0.25
+                'LOG_SPEEDLINE_INTERVAL_S': 0.25,
+                'SPACE_TIMED_SPEED_SCHEDULE': [[0.0, 2500.0], [2.0, 2200.0], [4.0, 1800.0], [6.0, 1500.0], [8.0, 1150.0]]
             }
         else:
             return {
@@ -1124,8 +1125,21 @@ class ConfigTab:
             ('LOG_SPEEDLINE_INTERVAL_S', 'Speedline Interval (s)', 'number')
         ]
 
-        # Speed schedule section
-        self.create_section_header("SPEED SCHEDULE")
+        # Create section headers and fields
+        self.create_section_header("MOVEMENT SETTINGS")
+        self.create_config_fields(movement_fields)
+
+        self.create_section_header("KEY BINDINGS")
+        self.create_config_fields(key_fields)
+
+        self.create_section_header("MOVEMENT BEHAVIOR")
+        self.create_config_fields(behavior_fields)
+
+        self.create_section_header("SPACE TIMING")
+        self.create_config_fields(space_fields)
+
+        # Speed schedule section (FIXED POSITIONING)
+        self.create_section_header("SPACE SPEED SCHEDULE")
 
         # Create frame for the speed schedule editor
         schedule_frame = ctk.CTkFrame(self.scroll_frame, corner_radius=self.theme["corner_radius"])
@@ -1139,7 +1153,7 @@ class ConfigTab:
         schedule_label.pack(anchor="w", padx=8, pady=(6, 2))
 
         # Instructions label
-        instructions_label = ctk.CTkLabel(schedule_frame, text="One pair per line: time, speed",
+        instructions_label = ctk.CTkLabel(schedule_frame, text="Format: time_seconds, speed_px_per_sec (one pair per line)",
                                     font=ctk.CTkFont(size=self.theme["font_size_small"]),
                                     text_color=self.theme["text_secondary"],
                                     anchor="w")
@@ -1150,7 +1164,8 @@ class ConfigTab:
                                             fg_color=self.theme["surface_dark"],
                                             border_color=self.theme["border"],
                                             corner_radius=self.theme["corner_radius"],
-                                            height=120)
+                                            height=120,
+                                            font=ctk.CTkFont(family="monospace", size=self.theme["font_size_small"]+1))
         self.schedule_textbox.pack(fill="x", padx=8, pady=(0, 8))
 
         # Fill the text box with the current schedule
@@ -1167,19 +1182,6 @@ class ConfigTab:
 
         # Store the textbox in config_entries with a special key
         self.config_entries["SPACE_TIMED_SPEED_SCHEDULE"] = self.schedule_textbox
-
-        # Create section headers
-        self.create_section_header("MOVEMENT SETTINGS")
-        self.create_config_fields(movement_fields)
-
-        self.create_section_header("KEY BINDINGS")
-        self.create_config_fields(key_fields)
-
-        self.create_section_header("MOVEMENT BEHAVIOR")
-        self.create_config_fields(behavior_fields)
-
-        self.create_section_header("SPACE TIMING")
-        self.create_config_fields(space_fields)
 
         self.create_section_header("HUMANIZATION")
         self.create_config_fields(humanization_fields)
@@ -1245,58 +1247,60 @@ class ConfigTab:
 
             self.config_entries[field_name].pack(side="right", padx=(5, 8), pady=4)
 
-def save_config(self):
-    try:
-        for key, entry in self.config_entries.items():
-            if key == "SPACE_TIMED_SPEED_SCHEDULE" and hasattr(entry, 'get'):
-                # Handle the schedule text box specially
-                schedule_text = entry.get("1.0", "end").strip()
-                schedule_array = []
+    def save_config(self):
+        """Save the configuration with proper handling of speed schedule"""
+        try:
+            for key, entry in self.config_entries.items():
+                if key == "SPACE_TIMED_SPEED_SCHEDULE" and hasattr(entry, 'get'):
+                    # Handle the schedule text box specially
+                    schedule_text = entry.get("1.0", "end").strip()
+                    schedule_array = []
 
-                for line in schedule_text.split('\n'):
-                    line = line.strip()
-                    if line:
+                    for line in schedule_text.split('\n'):
+                        line = line.strip()
+                        if line:
+                            try:
+                                # Parse "time, speed" format
+                                parts = line.split(',')
+                                if len(parts) == 2:
+                                    time_val = float(parts[0].strip())
+                                    speed_val = float(parts[1].strip())
+                                    schedule_array.append([time_val, speed_val])
+                            except ValueError:
+                                # Skip invalid lines
+                                self.main_app.log(f"Warning: Skipped invalid schedule line: {line}")
+
+                    # Sort the schedule by time
+                    schedule_array.sort(key=lambda x: x[0])
+                    self.macro_data[key] = schedule_array
+                elif hasattr(entry, 'get'):
+                    value = entry.get()
+                    # Try to convert numbers
+                    number_fields = [
+                        'cps', 'click_duration',
+                        'SPEED_PX_PER_SEC_DEFAULT', 'MIN_SPEED_PX_PER_SEC', 'MAX_SPEED_PX_PER_SEC',
+                        'SPEEDUP_MULTIPLIER', 'SLOWDOWN_MULTIPLIER', 'SCROLL_SPEED_STEP',
+                        'ACCEL_TIME_S', 'DECEL_TIME_S', 'MIN_FRAME_TIME',
+                        'MAX_STEP_PX', 'DEADZONE_VEL_PX_S', 'NOISE_PER_STEP_PX',
+                        'START_MOVE_DELAY_S', 'SPACE_TICK_SECONDS', 'LOG_SPEEDLINE_INTERVAL_S'
+                    ]
+
+                    if key in number_fields and value:
                         try:
-                            # Parse "time, speed" format
-                            parts = line.split(',')
-                            if len(parts) == 2:
-                                time_val = float(parts[0].strip())
-                                speed_val = float(parts[1].strip())
-                                schedule_array.append([time_val, speed_val])
+                            value = float(value)
                         except ValueError:
-                            # Skip invalid lines
-                            self.main_app.log(f"Warning: Skipped invalid schedule line: {line}")
+                            pass
+                    self.macro_data[key] = value
 
-                # Sort the schedule by time
-                schedule_array.sort(key=lambda x: x[0])
-                self.macro_data[key] = schedule_array
-            elif hasattr(entry, 'get'):
-                value = entry.get()
-                # Try to convert numbers
-                number_fields = [
-                    'cps', 'click_duration',
-                    'SPEED_PX_PER_SEC_DEFAULT', 'MIN_SPEED_PX_PER_SEC', 'MAX_SPEED_PX_PER_SEC',
-                    'SPEEDUP_MULTIPLIER', 'SLOWDOWN_MULTIPLIER', 'SCROLL_SPEED_STEP',
-                    'ACCEL_TIME_S', 'DECEL_TIME_S', 'MIN_FRAME_TIME',
-                    'MAX_STEP_PX', 'DEADZONE_VEL_PX_S', 'NOISE_PER_STEP_PX',
-                    'START_MOVE_DELAY_S', 'SPACE_TICK_SECONDS', 'LOG_SPEEDLINE_INTERVAL_S'
-                ]
+            if self.save_macro_config():
+                messagebox.showinfo("Success", "Configuration saved!")
+                self.main_app.log(f"Configuration for '{self.macro_name}' updated")
+                self.main_app.log(f"Speed schedule: {len(self.macro_data.get('SPACE_TIMED_SPEED_SCHEDULE', []))} entries")
+            else:
+                messagebox.showerror("Error", "Failed to save configuration")
 
-                if key in number_fields and value:
-                    try:
-                        value = float(value)
-                    except ValueError:
-                        pass
-                self.macro_data[key] = value
-
-        if self.save_macro_config():
-            messagebox.showinfo("Success", "Configuration saved!")
-            self.main_app.log(f"Configuration for '{self.macro_name}' updated")
-        else:
-            messagebox.showerror("Error", "Failed to save configuration")
-
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to save configuration: {str(e)}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save configuration: {str(e)}")
 
 class MacroManager:
     def __init__(self):
@@ -1907,7 +1911,7 @@ if __name__ == "__main__":
     try:
         import customtkinter
         import evdev
-    except ImportError as e:
+    except ImportError as e:dd
         print(f"Missing dependency: {e}")
         print("Install with: pip install customtkinter evdev")
         sys.exit(1)
