@@ -1,0 +1,18 @@
+{
+    "name": "anti_afk",
+    "script_path": "/home/anxious/macro-manager/macros/anti_afk.py",
+    "description": "Anti-AFK: anti_afk.py",
+    "CLICKS_PER_SECOND": 1.0,
+    "CLICK_DURATION_SECONDS": 0.001,
+    "TRIGGER_KEY_NAME": "KEY_K",
+    "TARGET_BUTTON": "BTN_LEFT",
+    "VERBOSE": "False",
+    "VMOUSE_NAME": "anti-afk-mouse",
+    "VKB_NAME": "anti-afk-kb",
+    "LOG_LEVEL": "minimal",
+    "LOG_CLICKS": "True",
+    "LOG_TOGGLES": "True",
+    "MIN_FRAME_TIME": 0.01,
+    "START_DELAY_S": 0.5,
+    "AUTO_DETECT_DEVICES": "True"
+}

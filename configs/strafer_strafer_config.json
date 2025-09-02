@@ -1,0 +1,75 @@
+{
+    "name": "strafer",
+    "script_path": "/home/anxious/macro-manager/macros/strafer.py",
+    "description": "Strafer: strafer.py",
+    "SPEED_PX_PER_SEC_DEFAULT": 2000.0,
+    "MIN_SPEED_PX_PER_SEC": 100.0,
+    "MAX_SPEED_PX_PER_SEC": 20000.0,
+    "SPEEDUP_MULTIPLIER": 2.0,
+    "SLOWDOWN_MULTIPLIER": 0.5,
+    "SCROLL_SPEED_STEP": 100.0,
+    "LEFT_PHYS_KEY_NAME": "KEY_A",
+    "RIGHT_PHYS_KEY_NAME": "KEY_D",
+    "PAUSE_KEY_NAME": "KEY_ESC",
+    "SPEEDUP_KEY_NAME": "KEY_LEFTCTRL",
+    "SLOWDOWN_KEY_NAME": "KEY_LEFTSHIFT",
+    "STOP_MOUSE_BUTTON": "BTN_EXTRA",
+    "WHEEL_ADJUST_TOGGLE_NAME": "KEY_F9",
+    "SPACE_TIMED_KEY_NAME": "KEY_SPACE",
+    "INVERT_X": "False",
+    "ACCEL_TIME_S": 0.002,
+    "DECEL_TIME_S": 0.003,
+    "EASING": "cubic_in_out",
+    "MIN_FRAME_TIME": 0.0015,
+    "MAX_STEP_PX": 12.0,
+    "DEADZONE_VEL_PX_S": 0.5,
+    "HUMANIZE_NOISE": "False",
+    "NOISE_PER_STEP_PX": 0.35,
+    "START_MOVE_DELAY_S": 0.001,
+    "SPACE_MIRROR_TO_GAME": "True",
+    "SPACE_TICK_SECONDS": 0.5,
+    "SPACE_ALLOW_INCREASE": "True",
+    "SPACE_RESTART_ON_PRESS": "True",
+    "SPACE_STOP_ON_RELEASE": "True",
+    "VKB_NAME": "strafer-kb",
+    "VMOUSE_NAME": "strafer-mouse",
+    "LOG_LEVEL": "minimal",
+    "LOG_TICKS": "False",
+    "LOG_STAGES": "True",
+    "LOG_RESTARTS": "True",
+    "LOG_SPEEDLINE_INTERVAL_S": 0.25,
+    "SPACE_TIMED_SPEED_SCHEDULE": [
+        [
+            0.0,
+            6500.0
+        ],
+        [
+            0.5,
+            5900.0
+        ],
+        [
+            1.0,
+            4500.0
+        ],
+        [
+            2.0,
+            3900.0
+        ],
+        [
+            3.0,
+            3300.0
+        ],
+        [
+            4.0,
+            2500.0
+        ],
+        [
+            6.0,
+            1900.0
+        ],
+        [
+            8.0,
+            1900.0
+        ]
+    ]
+}

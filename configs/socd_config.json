@@ -1,0 +1,35 @@
+{
+    "name": "socd",
+    "script_path": "/home/anxious/macro-manager/macros/socd.py",
+    "description": "SOCD Cleaner: socd.py",
+    "AXES": [
+        {
+            "name": "horizontal",
+            "keys": [
+                "a",
+                "d"
+            ],
+            "mode": "recent"
+        },
+        {
+            "name": "vertical",
+            "keys": [
+                "w",
+                "s"
+            ],
+            "mode": "recent"
+        },
+        {
+            "name": "vertical2",
+            "keys": [
+                "e",
+                "q"
+            ],
+            "mode": "recent"
+        }
+    ],
+    "GRAB_INPUTS": "True",
+    "VERBOSE": "False",
+    "VDEV_NAME": "socd-keyboard",
+    "AUTO_DETECT_DEVICES": "True"
+}

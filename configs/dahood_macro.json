@@ -1,0 +1,13 @@
+{
+    "name": "dahood_macro",
+    "script_path": "/home/anxious/macro-manager/macros/dahood_macro.py",
+    "description": "Dahood Auto-Scroll: dahood_macro.py",
+    "SCROLL_UP_DELAY": 0.0032,
+    "SCROLL_DOWN_DELAY": 0.022,
+    "SCROLL_UP_VALUE": 1.0,
+    "SCROLL_DOWN_VALUE": -1.0,
+    "TRIGGER_BUTTON": "BTN_SIDE",
+    "VIRTUAL_MOUSE_NAME": "dahood-macro",
+    "AUTO_DETECT_DEVICES": "True",
+    "VERBOSE": "False"
+}
