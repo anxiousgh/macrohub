@@ -1,0 +1,13 @@
+{
+    "corner_radius_large": 0,
+    "corner_radius_medium": 0,
+    "corner_radius_small": 0,
+    "border_width": 3,
+    "spacing": 10,
+    "button_height": 32,
+    "font_family": "monospace",
+    "font_size_multiplier": 1.2,
+    "shadow_enabled": false,
+    "gradient_enabled": false,
+    "animation_speed": "slow"
+}
