@@ -1,0 +1,17 @@
+{
+    "primary": "#00ff88",
+    "primary_hover": "#00dd66",
+    "secondary": "#44ff99",
+    "background": "#000800",
+    "surface": "#001100",
+    "surface_variant": "#002200",
+    "surface_dark": "#000a00",
+    "text_primary": "#ffffff",
+    "text_secondary": "#88ff88",
+    "text_accent": "#00ff88",
+    "success": "#00ff88",
+    "success_hover": "#00dd66",
+    "warning": "#ffaa00",
+    "error": "#ff4444",
+    "border": "#004400"
+}
