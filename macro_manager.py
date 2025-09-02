@@ -359,22 +359,14 @@ class DevicePicker:
 
     def load_devices(self):
         try:
-            # Get all device paths and sort them by event number
-            device_paths = glob.glob('/dev/input/event*')
-            device_paths.sort(key=lambda x: int(x.split('event')[1]) if x.split('event')[1].isdigit() else 999)
+            all_devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
 
-            # Filter to only input devices (keyboards and mice) in sorted order
+            # Filter to only input devices (keyboards and mice)
             input_devices = []
-            for device_path in device_paths:
-                try:
-                    device = evdev.InputDevice(device_path)
-                    is_input, device_type = self.is_input_device(device)
-                    if is_input:
-                        input_devices.append((device, device_type))
-                    else:
-                        device.close()
-                except:
-                    continue
+            for device in all_devices:
+                is_input, device_type = self.is_input_device(device)
+                if is_input:
+                    input_devices.append((device, device_type))
 
             if not input_devices:
                 no_devices_label = ctk.CTkLabel(self.scroll_frame,
@@ -987,83 +979,6 @@ class ConfigTab:
                 'LOG_RESTARTS': 'True',
                 'LOG_SPEEDLINE_INTERVAL_S': 0.25
             }
-        elif macro_type == 'socd':
-            return {
-                'name': self.macro_name,
-                'script_path': script_path,
-                'description': f"SOCD Cleaner: {os.path.basename(script_path)}",
-                'AXES': [
-                    {"name": "horizontal", "keys": ["a", "d"], "mode": "recent"},
-                    {"name": "vertical", "keys": ["w", "s"], "mode": "recent"},
-                    {"name": "vertical2", "keys": ["e", "q"], "mode": "recent"}
-                ],
-                'GRAB_INPUTS': 'True',
-                'VERBOSE': 'True',
-                'VDEV_NAME': 'socd-keyboard',
-                'AUTO_DETECT_DEVICES': 'True'
-            }
-        elif macro_type == 'wallhop':
-            return {
-                'name': self.macro_name,
-                'script_path': script_path,
-                'description': f"Wallhop (Smooth Flick): {os.path.basename(script_path)}",
-                'MOVE_DISTANCE': 950,
-                'MOVE_DURATION': 0.08,
-                'OVERSHOOT_ENABLED': 'True',
-                'FORWARD_SETTLE_ENABLED': 'False',
-                'BACK_DURATION': 0.04,
-                'FORWARD_OVERSHOOT_MIN_PCT': 0.1,
-                'FORWARD_OVERSHOOT_MAX_PCT': 0.65,
-                'RETURN_OVERSHOOT_ENABLED': 'True',
-                'RETURN_SETTLE_ENABLED': 'False',
-                'RETURN_BACK_DURATION': 0.2,
-                'RETURN_OVERSHOOT_MIN_PCT': -0.15,
-                'RETURN_OVERSHOOT_MAX_PCT': 0.15,
-                'EASING_FORWARD': 'exp_in_out',
-                'EASING_BACK': 'cubic_in_out',
-                'RETURN_EASING_FORWARD': 'exp_in_out',
-                'RETURN_EASING_BACK': 'cubic_in_out',
-                'ENABLE_NOISE': 'True',
-                'NOISE_PER_STEP_PX': 0.8,
-                'JITTER_DISTANCE_PCT': 0.12,
-                'MAX_ABS_MOVE_PX': 3000,
-                'MIN_FRAME_TIME': 0.0015,
-                'TRIGGER_BUTTON': 'BTN_EXTRA',
-                'VIRTUAL_MOUSE_NAME': 'smooth-flick-mouse-mover'
-            }
-        elif macro_type == 'dahood-macro':
-            return {
-                'name': self.macro_name,
-                'script_path': script_path,
-                'description': f"Dahood Auto-Scroll: {os.path.basename(script_path)}",
-                'SCROLL_UP_DELAY': 0.0032,
-                'SCROLL_DOWN_DELAY': 0.022,
-                'SCROLL_UP_VALUE': 1,
-                'SCROLL_DOWN_VALUE': -1,
-                'TRIGGER_BUTTON': 'BTN_SIDE',
-                'VIRTUAL_MOUSE_NAME': 'optimized-scroll-macro',
-                'AUTO_DETECT_DEVICES': 'True',
-                'VERBOSE': 'True'
-            }
-        elif macro_type == 'anti-afk':
-            return {
-                'name': self.macro_name,
-                'script_path': script_path,
-                'description': f"Anti-AFK: {os.path.basename(script_path)}",
-                'CLICKS_PER_SECOND': 0.5,
-                'CLICK_DURATION_SECONDS': 0.001,
-                'TRIGGER_KEY_NAME': 'KEY_K',
-                'TARGET_BUTTON': 'BTN_LEFT',
-                'VERBOSE': 'False',
-                'VMOUSE_NAME': 'anti-afk-mouse',
-                'VKB_NAME': 'anti-afk-kb',
-                'LOG_LEVEL': 'minimal',
-                'LOG_CLICKS': 'True',
-                'LOG_TOGGLES': 'True',
-                'MIN_FRAME_TIME': 0.01,
-                'START_DELAY_S': 0.5,
-                'AUTO_DETECT_DEVICES': 'True'
-            }
         else:
             return {
                 'name': self.macro_name,
@@ -1131,14 +1046,6 @@ class ConfigTab:
             self.create_autoclicker_config()
         elif macro_type == 'strafer':
             self.create_strafer_config()
-        elif macro_type == 'socd':
-            self.create_socd_config()
-        elif macro_type == 'wallhop':
-            self.create_wallhop_config()
-        elif macro_type == 'dahood-macro':
-            self.create_dahood_config()
-        elif macro_type == 'anti-afk':
-            self.create_anti_afk_config()
         else:
             self.create_generic_config()
 
@@ -1283,378 +1190,6 @@ class ConfigTab:
         self.create_section_header("LOGGING")
         self.create_config_fields(log_fields)
 
-    def create_socd_config(self):
-        """Create SOCD-specific configuration UI"""
-        self.create_section_header("GLOBAL SETTINGS")
-
-        # Global SOCD settings
-        global_fields = [
-            ('GRAB_INPUTS', 'Grab Input Devices Exclusively', 'dropdown', ['True', 'False']),
-            ('VERBOSE', 'Verbose Logging', 'dropdown', ['True', 'False']),
-            ('VDEV_NAME', 'Virtual Device Name', 'text'),
-            ('AUTO_DETECT_DEVICES', 'Auto-detect Keyboards', 'dropdown', ['True', 'False'])
-        ]
-
-        self.create_config_fields(global_fields)
-
-        # AXES CONFIGURATION
-        self.create_section_header("AXES CONFIGURATION")
-
-        # Create the axes editor
-        self.create_axes_editor()
-
-    def create_axes_editor(self):
-        """Create the axes configuration editor for SOCD"""
-        axes_frame = ctk.CTkFrame(self.scroll_frame, corner_radius=self.theme["corner_radius"])
-        axes_frame.pack(fill="x", padx=5, pady=self.theme["spacing"])
-
-        # Instructions
-        instructions_label = ctk.CTkLabel(axes_frame,
-                                          text="Configure axis groups. Each axis manages conflicts between its assigned keys.",
-                                          font=ctk.CTkFont(size=self.theme["font_size_small"]),
-                                          text_color=self.theme["text_secondary"],
-                                          anchor="w")
-        instructions_label.pack(anchor="w", padx=8, pady=(6, 8))
-
-        # Get current axes or use defaults
-        current_axes = self.macro_data.get("AXES", [
-            {"name": "horizontal", "keys": ["a", "d"], "mode": "recent"},
-            {"name": "vertical", "keys": ["w", "s"], "mode": "recent"},
-            {"name": "vertical2", "keys": ["e", "q"], "mode": "recent"}
-        ])
-
-        # Store axes data and UI elements
-        self.axes_data = current_axes.copy()
-        self.axes_widgets = []
-
-        # Create scrollable frame for axes
-        axes_scroll = ctk.CTkScrollableFrame(axes_frame, height=300,
-                                             corner_radius=self.theme["corner_radius"])
-        axes_scroll.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-
-        self.axes_scroll_frame = axes_scroll
-
-        # Create UI for each axis
-        self.refresh_axes_ui()
-
-        # Add axis button
-        add_axis_btn = ctk.CTkButton(axes_frame, text="+ Add Axis",
-                                     command=self.add_axis,
-                                     fg_color=self.theme["success"],
-                                     hover_color=self.theme["success_hover"],
-                                     text_color="#000000",
-                                     width=100,
-                                     height=25,
-                                     font=ctk.CTkFont(size=self.theme["font_size_small"]),
-                                     corner_radius=self.theme["corner_radius"])
-        add_axis_btn.pack(pady=(0, 8))
-
-        # Store axes in config_entries with special handling
-        self.config_entries["AXES"] = self.axes_data
-
-    def refresh_axes_ui(self):
-        """Refresh the axes UI display"""
-        # Clear existing widgets
-        for widget in self.axes_scroll_frame.winfo_children():
-            widget.destroy()
-        self.axes_widgets = []
-
-        # Create UI for each axis
-        for i, axis in enumerate(self.axes_data):
-            self.create_axis_widget(i, axis)
-
-    def create_axis_widget(self, axis_index, axis_data):
-        """Create a widget for configuring a single axis"""
-        # Main axis frame
-        axis_frame = ctk.CTkFrame(self.axes_scroll_frame,
-                                  corner_radius=self.theme["corner_radius"],
-                                  border_width=1,
-                                  border_color=self.theme["border"])
-        axis_frame.pack(fill="x", padx=5, pady=5)
-
-        # Header with axis name and delete button
-        header_frame = ctk.CTkFrame(axis_frame, fg_color="transparent")
-        header_frame.pack(fill="x", padx=8, pady=(8, 5))
-
-        axis_name_label = ctk.CTkLabel(header_frame,
-                                       text=f"Axis: {axis_data.get('name', 'unnamed')}",
-                                       font=ctk.CTkFont(size=self.theme["font_size_medium"], weight="bold"),
-                                       text_color=self.theme["text_primary"])
-        axis_name_label.pack(side="left")
-
-        delete_btn = ctk.CTkButton(header_frame, text="×",
-                                   command=lambda idx=axis_index: self.delete_axis(idx),
-                                   fg_color=self.theme["error"],
-                                   hover_color="#cc3333",
-                                   width=25, height=20,
-                                   font=ctk.CTkFont(size=self.theme["font_size_small"]),
-                                   corner_radius=self.theme["corner_radius"])
-        delete_btn.pack(side="right")
-
-        # Axis configuration fields
-        config_frame = ctk.CTkFrame(axis_frame, fg_color="transparent")
-        config_frame.pack(fill="x", padx=8, pady=(0, 8))
-
-        # Name field
-        name_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
-        name_frame.pack(fill="x", pady=2)
-
-        name_label = ctk.CTkLabel(name_frame, text="Name:",
-                                  font=ctk.CTkFont(size=self.theme["font_size_small"]),
-                                  width=60, anchor="w")
-        name_label.pack(side="left", padx=(0, 5))
-
-        name_entry = ctk.CTkEntry(name_frame,
-                                  fg_color=self.theme["surface_dark"],
-                                  border_color=self.theme["border"],
-                                  corner_radius=self.theme["corner_radius"],
-                                  width=120)
-        name_entry.insert(0, axis_data.get('name', ''))
-        name_entry.pack(side="left", padx=(0, 10))
-
-        # Mode field
-        mode_label = ctk.CTkLabel(name_frame, text="Mode:",
-                                  font=ctk.CTkFont(size=self.theme["font_size_small"]),
-                                  width=40, anchor="w")
-        mode_label.pack(side="left", padx=(10, 5))
-
-        mode_options = ["recent", "first", "neutral", "priority", "combine", "invert", "sticky", "toggle"]
-        mode_menu = ctk.CTkOptionMenu(name_frame,
-                                      values=mode_options,
-                                      width=100,
-                                      fg_color=self.theme["primary"],
-                                      button_color=self.theme["primary_hover"],
-                                      corner_radius=self.theme["corner_radius"])
-        mode_menu.set(axis_data.get('mode', 'recent'))
-        mode_menu.pack(side="left")
-
-        # Keys field
-        keys_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
-        keys_frame.pack(fill="x", pady=2)
-
-        keys_label = ctk.CTkLabel(keys_frame, text="Keys:",
-                                  font=ctk.CTkFont(size=self.theme["font_size_small"]),
-                                  width=60, anchor="w")
-        keys_label.pack(side="left", padx=(0, 5))
-
-        keys_entry = ctk.CTkEntry(keys_frame,
-                                  fg_color=self.theme["surface_dark"],
-                                  border_color=self.theme["border"],
-                                  corner_radius=self.theme["corner_radius"],
-                                  width=300)
-        keys_str = ", ".join(axis_data.get('keys', []))
-        keys_entry.insert(0, keys_str)
-        keys_entry.pack(side="left")
-
-        # Advanced options (priority, delays)
-        advanced_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
-        advanced_frame.pack(fill="x", pady=2)
-
-        # Priority field (only for priority mode)
-        priority_label = ctk.CTkLabel(advanced_frame, text="Priority:",
-                                      font=ctk.CTkFont(size=self.theme["font_size_small"]),
-                                      width=60, anchor="w")
-        priority_label.pack(side="left", padx=(0, 5))
-
-        priority_entry = ctk.CTkEntry(advanced_frame,
-                                      fg_color=self.theme["surface_dark"],
-                                      border_color=self.theme["border"],
-                                      corner_radius=self.theme["corner_radius"],
-                                      width=150)
-        priority_list = axis_data.get('priority', [])
-        if priority_list:
-            priority_entry.insert(0, ", ".join(priority_list))
-        priority_entry.pack(side="left", padx=(0, 10))
-
-        # Delay fields
-        delay_label = ctk.CTkLabel(advanced_frame, text="Swap Delay (ms):",
-                                   font=ctk.CTkFont(size=self.theme["font_size_small"]),
-                                   width=90, anchor="w")
-        delay_label.pack(side="left", padx=(10, 5))
-
-        delay_entry = ctk.CTkEntry(advanced_frame,
-                                   fg_color=self.theme["surface_dark"],
-                                   border_color=self.theme["border"],
-                                   corner_radius=self.theme["corner_radius"],
-                                   width=60)
-        delay_entry.insert(0, str(axis_data.get('swap_delay_ms', 0)))
-        delay_entry.pack(side="left")
-
-        # Store widgets for this axis
-        axis_widgets = {
-            'frame': axis_frame,
-            'name': name_entry,
-            'mode': mode_menu,
-            'keys': keys_entry,
-            'priority': priority_entry,
-            'delay': delay_entry
-        }
-        self.axes_widgets.append(axis_widgets)
-
-    def create_wallhop_config(self):
-        """Create wallhop-specific configuration UI"""
-
-        # Basic movement settings
-        movement_fields = [
-            ('MOVE_DISTANCE', 'Movement Distance (px)', 'number'),
-            ('MOVE_DURATION', 'Movement Duration (seconds)', 'number'),
-            ('TRIGGER_BUTTON', 'Trigger Button', 'dropdown', ['BTN_LEFT', 'BTN_RIGHT', 'BTN_MIDDLE', 'BTN_SIDE', 'BTN_EXTRA', 'BTN_FORWARD', 'BTN_BACK'])
-        ]
-
-        # Forward overshoot settings
-        forward_overshoot_fields = [
-            ('OVERSHOOT_ENABLED', 'Enable Forward Overshoot', 'dropdown', ['True', 'False']),
-            ('FORWARD_OVERSHOOT_MIN_PCT', 'Forward Overshoot Min %', 'number'),
-            ('FORWARD_OVERSHOOT_MAX_PCT', 'Forward Overshoot Max %', 'number'),
-            ('FORWARD_SETTLE_ENABLED', 'Enable Forward Settle', 'dropdown', ['False', 'True']),
-            ('BACK_DURATION', 'Forward Settle Duration (s)', 'number')
-        ]
-
-        # Return overshoot settings
-        return_overshoot_fields = [
-            ('RETURN_OVERSHOOT_ENABLED', 'Enable Return Overshoot', 'dropdown', ['True', 'False']),
-            ('RETURN_OVERSHOOT_MIN_PCT', 'Return Overshoot Min %', 'number'),
-            ('RETURN_OVERSHOOT_MAX_PCT', 'Return Overshoot Max %', 'number'),
-            ('RETURN_SETTLE_ENABLED', 'Enable Return Settle', 'dropdown', ['False', 'True']),
-            ('RETURN_BACK_DURATION', 'Return Settle Duration (s)', 'number')
-        ]
-
-        # Easing settings
-        easing_options = ['linear', 'cubic_out', 'cubic_in_out', 'quint_out', 'quad_out', 'quart_out', 'sine_in_out', 'exp_in', 'exp_out', 'exp_in_out']
-        easing_fields = [
-            ('EASING_FORWARD', 'Forward Easing', 'dropdown', easing_options),
-            ('EASING_BACK', 'Forward Settle Easing', 'dropdown', easing_options),
-            ('RETURN_EASING_FORWARD', 'Return Easing', 'dropdown', easing_options),
-            ('RETURN_EASING_BACK', 'Return Settle Easing', 'dropdown', easing_options)
-        ]
-
-        # Humanization settings
-        humanization_fields = [
-            ('ENABLE_NOISE', 'Enable Movement Noise', 'dropdown', ['True', 'False']),
-            ('NOISE_PER_STEP_PX', 'Noise Per Step (px)', 'number'),
-            ('JITTER_DISTANCE_PCT', 'Distance Jitter %', 'number')
-        ]
-
-        # Performance and safety settings
-        performance_fields = [
-            ('MAX_ABS_MOVE_PX', 'Max Movement (px)', 'number'),
-            ('MIN_FRAME_TIME', 'Min Frame Time (s)', 'number'),
-            ('VIRTUAL_MOUSE_NAME', 'Virtual Mouse Name', 'text')
-        ]
-
-        # Create sections
-        self.create_section_header("BASIC MOVEMENT")
-        self.create_config_fields(movement_fields)
-
-        self.create_section_header("FORWARD OVERSHOOT")
-        self.create_config_fields(forward_overshoot_fields)
-
-        self.create_section_header("RETURN OVERSHOOT")
-        self.create_config_fields(return_overshoot_fields)
-
-        self.create_section_header("EASING CURVES")
-        self.create_config_fields(easing_fields)
-
-        self.create_section_header("HUMANIZATION")
-        self.create_config_fields(humanization_fields)
-
-        self.create_section_header("PERFORMANCE & SAFETY")
-        self.create_config_fields(performance_fields)
-
-    def create_dahood_config(self):
-        """Create dahood auto-scroll configuration UI"""
-
-        # Basic timing settings
-        timing_fields = [
-            ('SCROLL_UP_DELAY', 'Up Scroll Delay (seconds)', 'number'),
-            ('SCROLL_DOWN_DELAY', 'Down Scroll Delay (seconds)', 'number'),
-            ('SCROLL_UP_VALUE', 'Up Scroll Amount', 'number'),
-            ('SCROLL_DOWN_VALUE', 'Down Scroll Amount', 'number')
-        ]
-
-        # Trigger and device settings
-        control_fields = [
-            ('TRIGGER_BUTTON', 'Trigger Button', 'dropdown', ['BTN_LEFT', 'BTN_RIGHT', 'BTN_MIDDLE', 'BTN_SIDE', 'BTN_EXTRA', 'BTN_FORWARD', 'BTN_BACK']),
-            ('AUTO_DETECT_DEVICES', 'Auto-detect Input Devices', 'dropdown', ['True', 'False']),
-            ('VERBOSE', 'Verbose Logging', 'dropdown', ['True', 'False'])
-        ]
-
-        # Device naming
-        device_fields = [
-            ('VIRTUAL_MOUSE_NAME', 'Virtual Mouse Name', 'text')
-        ]
-
-        # Create sections
-        self.create_section_header("SCROLL TIMING")
-        self.create_config_fields(timing_fields)
-
-        self.create_section_header("CONTROLS & DETECTION")
-        self.create_config_fields(control_fields)
-
-        self.create_section_header("VIRTUAL DEVICE")
-        self.create_config_fields(device_fields)
-
-    def create_anti_afk_config(self):
-        """Create anti-afk configuration UI"""
-
-        # Timing settings
-        timing_fields = [
-            ('CLICKS_PER_SECOND', 'Clicks Per Second', 'number'),
-            ('CLICK_DURATION_SECONDS', 'Click Duration (seconds)', 'number'),
-            ('START_DELAY_S', 'Start Delay (seconds)', 'number'),
-            ('MIN_FRAME_TIME', 'Min Frame Time (seconds)', 'number')
-        ]
-
-        # Control settings
-        control_fields = [
-            ('TRIGGER_KEY_NAME', 'Trigger Key', 'dropdown', ['KEY_K', 'KEY_T', 'KEY_G', 'KEY_H', 'KEY_F', 'KEY_SPACE']),
-            ('TARGET_BUTTON', 'Target Click Button', 'dropdown', ['BTN_LEFT', 'BTN_RIGHT', 'BTN_MIDDLE']),
-            ('AUTO_DETECT_DEVICES', 'Auto-detect Input Devices', 'dropdown', ['True', 'False']),
-            ('VERBOSE', 'Verbose Output', 'dropdown', ['False', 'True'])
-        ]
-
-        # Logging settings
-        logging_fields = [
-            ('LOG_LEVEL', 'Log Level', 'dropdown', ['minimal', 'verbose', 'none']),
-            ('LOG_CLICKS', 'Log Clicks', 'dropdown', ['True', 'False']),
-            ('LOG_TOGGLES', 'Log Toggle Actions', 'dropdown', ['True', 'False'])
-        ]
-
-        # Virtual device settings
-        device_fields = [
-            ('VMOUSE_NAME', 'Virtual Mouse Name', 'text'),
-            ('VKB_NAME', 'Virtual Keyboard Name', 'text')
-        ]
-
-        # Create sections
-        self.create_section_header("TIMING SETTINGS")
-        self.create_config_fields(timing_fields)
-
-        self.create_section_header("CONTROL SETTINGS")
-        self.create_config_fields(control_fields)
-
-        self.create_section_header("LOGGING")
-        self.create_config_fields(logging_fields)
-
-        self.create_section_header("VIRTUAL DEVICES")
-        self.create_config_fields(device_fields)
-
-    def add_axis(self):
-        """Add a new axis"""
-        new_axis = {
-            'name': f'axis_{len(self.axes_data)}',
-            'keys': ['j', 'k'],
-            'mode': 'recent'
-        }
-        self.axes_data.append(new_axis)
-        self.refresh_axes_ui()
-
-    def delete_axis(self, axis_index):
-        """Delete an axis"""
-        if len(self.axes_data) > 1:  # Keep at least one axis
-            del self.axes_data[axis_index]
-            self.refresh_axes_ui()
-
     def create_generic_config(self):
         for key, value in self.macro_data.items():
             if key in ['name', 'script_path', 'description']:
@@ -1735,44 +1270,6 @@ class ConfigTab:
                     # Sort the schedule by time
                     schedule_array.sort(key=lambda x: x[0])
                     self.macro_data[key] = schedule_array
-                elif key == "AXES":
-                    # Handle SOCD axes specially
-                    axes_data = []
-                    for i, axis_widgets in enumerate(self.axes_widgets):
-                        try:
-                            # Get values from widgets
-                            name = axis_widgets['name'].get().strip()
-                            mode = axis_widgets['mode'].get()
-                            keys_str = axis_widgets['keys'].get().strip()
-                            priority_str = axis_widgets['priority'].get().strip()
-                            delay_str = axis_widgets['delay'].get().strip()
-
-                            # Parse keys
-                            keys = [k.strip() for k in keys_str.split(',') if k.strip()]
-
-                            # Build axis dict
-                            axis_dict = {
-                                'name': name or f'axis_{i}',
-                                'keys': keys,
-                                'mode': mode
-                            }
-
-                            # Add optional fields
-                            if priority_str:
-                                priority_keys = [k.strip() for k in priority_str.split(',') if k.strip()]
-                                axis_dict['priority'] = priority_keys
-
-                            if delay_str and delay_str != '0':
-                                try:
-                                    axis_dict['swap_delay_ms'] = int(delay_str)
-                                except ValueError:
-                                    pass
-
-                            axes_data.append(axis_dict)
-                        except Exception as e:
-                            self.main_app.log(f"Warning: Error processing axis {i}: {e}")
-
-                    self.macro_data[key] = axes_data
                 elif hasattr(entry, 'get'):
                     value = entry.get()
                     # Try to convert numbers
@@ -1782,13 +1279,7 @@ class ConfigTab:
                         'SPEEDUP_MULTIPLIER', 'SLOWDOWN_MULTIPLIER', 'SCROLL_SPEED_STEP',
                         'ACCEL_TIME_S', 'DECEL_TIME_S', 'MIN_FRAME_TIME',
                         'MAX_STEP_PX', 'DEADZONE_VEL_PX_S', 'NOISE_PER_STEP_PX',
-                        'START_MOVE_DELAY_S', 'SPACE_TICK_SECONDS', 'LOG_SPEEDLINE_INTERVAL_S',
-                        'MOVE_DISTANCE', 'MOVE_DURATION', 'BACK_DURATION', 'RETURN_BACK_DURATION',
-                        'FORWARD_OVERSHOOT_MIN_PCT', 'FORWARD_OVERSHOOT_MAX_PCT',
-                        'RETURN_OVERSHOOT_MIN_PCT', 'RETURN_OVERSHOOT_MAX_PCT',
-                        'NOISE_PER_STEP_PX', 'JITTER_DISTANCE_PCT', 'MAX_ABS_MOVE_PX',
-                        'SCROLL_UP_DELAY', 'SCROLL_DOWN_DELAY', 'SCROLL_UP_VALUE', 'SCROLL_DOWN_VALUE',
-                        'CLICKS_PER_SECOND', 'CLICK_DURATION_SECONDS', 'START_DELAY_S'
+                        'START_MOVE_DELAY_S', 'SPACE_TICK_SECONDS', 'LOG_SPEEDLINE_INTERVAL_S'
                     ]
 
                     if key in number_fields and value:
@@ -2113,70 +1604,17 @@ class MacroManager:
             if not script_path or not os.path.exists(script_path):
                 return 'generic'
 
-            # Check the filename first - this should catch common names
+            # Check the filename first - this should definitely catch "strafer.py"
             basename = os.path.basename(script_path).lower()
-
-            # Anti-AFK detection
-            if 'anti-afk' in basename or 'anti_afk' in basename or 'antiafk' in basename:
-                print(f"Detected anti-afk from filename: {basename}")
-                return 'anti-afk'
-
-            # SOCD detection
-            if 'socd' in basename:
-                print(f"Detected SOCD from filename: {basename}")
-                return 'socd'
-
-            # Strafer detection
             if 'strafe' in basename or 'strafer' in basename:
                 print(f"Detected strafer from filename: {basename}")
                 return 'strafer'
 
-            # Wallhop detection
-            if 'wallhop' in basename or 'flick' in basename:
-                print(f"Detected wallhop from filename: {basename}")
-                return 'wallhop'
-
-            # Dahood macro detection
-            if 'dahood' in basename or 'scroll' in basename:
-                print(f"Detected dahood-macro from filename: {basename}")
-                return 'dahood-macro'
-
-            # Autoclicker detection
-            if 'click' in basename or 'autoclicker' in basename:
-                return 'autoclicker'
-
-            # Read content for more detection
             with open(script_path, 'r') as f:
                 content = f.read().lower()
 
-            # Check for Anti-AFK indicators
-            antiafk_keywords = ['anti-afk', 'anti_afk', 'antiafk', 'anti-disconnect', 'prevent disconnect', 'afk', 'clicking_active']
-            for keyword in antiafk_keywords:
-                if keyword in content:
-                    print(f"Detected anti-afk from content keyword: {keyword}")
-                    return 'anti-afk'
-
-            # Check for SOCD indicators
-            socd_keywords = ['socd', 'simultaneous opposite cardinal directions', 'axis', 'recent', 'first', 'neutral', 'priority']
-            for keyword in socd_keywords:
-                if keyword in content:
-                    print(f"Detected SOCD from content keyword: {keyword}")
-                    return 'socd'
-
-            # Check for minecraft-ac indicators
-            minecraft_keywords = ['minecraft', 'leftright', 'socd-cleaner-plus']
-            for keyword in minecraft_keywords:
-                if keyword in content:
-                    print(f"Detected minecraft-ac from content keyword: {keyword}")
-                    return 'minecraft-ac'
-            wallhop_keywords = ['wallhop', 'flick', 'smooth flick', 'overshoot', 'easing', 'move_distance']
-            for keyword in wallhop_keywords:
-                if keyword in content:
-                    print(f"Detected wallhop from content keyword: {keyword}")
-                    return 'wallhop'
-
             # Check for autoclicker indicators
-            if 'autoclicker' in content or ('click' in basename and 'click' in content):
+            if 'autoclicker' in content or 'click' in basename:
                 return 'autoclicker'
 
             # Check for strafer indicators - more keywords
@@ -2204,13 +1642,13 @@ class MacroManager:
                 messagebox.showerror("Error", f"Script not found for macro '{macro_name}'")
                 return
 
-            # Detect macro type to determine if device picker is needed
+            # Detect macro type first
             macro_type = self.detect_macro_type(script_path)
             device_path = None
 
-            # SOCD cleaner doesn't need device selection (auto-detects keyboards)
-            if macro_type != 'socd':
-                # Show device picker for other macros
+            # Only show device picker for non-strafer macros
+            if macro_type != 'strafer':
+                # Show device picker (always centered and on top)
                 picker = DevicePicker(self.root, self.theme)
                 self.root.wait_window(picker.window)
 
@@ -2220,6 +1658,9 @@ class MacroManager:
 
                 device_path = picker.selected_device
                 self.log(f"Selected device: {device_path}")
+            else:
+                # For strafer, use auto-detection (no device picker)
+                self.log(f"Strafer macro detected - using auto-detection")
 
             # Load specific macro config
             config_file = os.path.expanduser(f"~/macro-manager/configs/{macro_name}.json")
@@ -2266,12 +1707,12 @@ class MacroManager:
     def build_command(self, script_path, macro_config, device_path):
         cmd = ['python3', script_path]
 
-        # Add device path for macros that need it (not SOCD)
-        macro_type = self.detect_macro_type(script_path)
-
-        if device_path and macro_type != 'socd':
+        # Only add device path if it's provided (non-strafer macros)
+        if device_path:
             cmd.extend(['--device', device_path])
 
+        # Force detect the macro type and print it
+        macro_type = self.detect_macro_type(script_path)
         print(f"Building command for macro type: {macro_type}")
 
         if macro_type == 'autoclicker':
@@ -2290,7 +1731,7 @@ class MacroManager:
             os.makedirs(config_dir, exist_ok=True)
 
             # Make sure the config file has the right path and name
-            config_file = os.path.join(config_dir, f"strafer_config.json")
+            config_file = os.path.join(config_dir, f"{macro_type}_{os.path.basename(script_path).split('.')[0]}_config.json")
 
             try:
                 with open(config_file, 'w') as f:
@@ -2300,70 +1741,11 @@ class MacroManager:
             except Exception as e:
                 self.log(f"Error creating config file for strafer: {e}")
 
-        elif macro_type == 'socd':
-            # For SOCD, create config file with axes and settings
-            config_dir = os.path.expanduser("~/macro-manager/configs")
-            os.makedirs(config_dir, exist_ok=True)
-
-            config_file = os.path.join(config_dir, f"socd_config.json")
-
-            try:
-                with open(config_file, 'w') as f:
-                    json.dump(macro_config, f, indent=4)
-                cmd.extend(['--config', config_file])
-                self.log(f"Created config for SOCD at: {config_file}")
-            except Exception as e:
-                self.log(f"Error creating config file for SOCD: {e}")
-
-        elif macro_type == 'wallhop':
-            # For wallhop, create config file and pass key parameters
-            config_dir = os.path.expanduser("~/macro-manager/configs")
-            os.makedirs(config_dir, exist_ok=True)
-
-            config_file = os.path.join(config_dir, f"wallhop_config.json")
-
-            try:
-                with open(config_file, 'w') as f:
-                    json.dump(macro_config, f, indent=4)
-                cmd.extend(['--config', config_file])
-                self.log(f"Created config for wallhop at: {config_file}")
-            except Exception as e:
-                self.log(f"Error creating config file for wallhop: {e}")
-
-            # Also pass key parameters directly for quick overrides
-            if 'MOVE_DISTANCE' in macro_config:
-                cmd.extend(['--distance', str(macro_config['MOVE_DISTANCE'])])
-            if 'MOVE_DURATION' in macro_config:
-                cmd.extend(['--duration', str(macro_config['MOVE_DURATION'])])
-            if 'TRIGGER_BUTTON' in macro_config:
-                cmd.extend(['--trigger', str(macro_config['TRIGGER_BUTTON'])])
-
-        elif macro_type == 'anti-afk':
-            # For anti-afk, create config file and pass key parameters
-            config_dir = os.path.expanduser("~/macro-manager/configs")
-            os.makedirs(config_dir, exist_ok=True)
-
-            config_file = os.path.join(config_dir, f"anti_afk_config.json")
-
-            try:
-                with open(config_file, 'w') as f:
-                    json.dump(macro_config, f, indent=4)
-                cmd.extend(['--config', config_file])
-                self.log(f"Created config for anti-afk at: {config_file}")
-            except Exception as e:
-                self.log(f"Error creating config file for anti-afk: {e}")
-
-            # Also pass key parameters directly for quick overrides
-            if 'CLICKS_PER_SECOND' in macro_config:
-                cmd.extend(['--cps', str(macro_config['CLICKS_PER_SECOND'])])
-            if 'CLICK_DURATION_SECONDS' in macro_config:
-                cmd.extend(['--duration', str(macro_config['CLICK_DURATION_SECONDS'])])
-            if 'TRIGGER_KEY_NAME' in macro_config:
-                trigger_key = str(macro_config['TRIGGER_KEY_NAME']).replace('KEY_', '').lower()
-                cmd.extend(['--trigger', trigger_key])
-            if 'TARGET_BUTTON' in macro_config:
-                target_btn = str(macro_config['TARGET_BUTTON']).replace('BTN_', '').lower()
-                cmd.extend(['--target', target_btn])
+                # Fallback to passing some key parameters directly
+                if 'SPEED_PX_PER_SEC_DEFAULT' in macro_config:
+                    cmd.extend(['--speed', str(macro_config['SPEED_PX_PER_SEC_DEFAULT'])])
+                if 'INVERT_X' in macro_config:
+                    cmd.extend(['--invert', str(macro_config['INVERT_X']).lower()])
 
         return cmd
 
